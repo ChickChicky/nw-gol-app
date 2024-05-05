@@ -1,19 +1,12 @@
-# Sample C app for Epsilon
+# Game Of Life App For Numworks Calculator
 
-[![Build](https://github.com/numworks/epsilon-sample-app-c/actions/workflows/build.yml/badge.svg)](https://github.com/numworks/epsilon-sample-app-c/actions/workflows/build.yml)
+Just a small little project that adds a Game Of Life application to a Numworks calculator.
 
-This is a sample C app to use on a [NumWorks calculator](https://www.numworks.com).
+# Quick Start
 
-```c
-#include <eadk.h>
-
-int main(int argc, char * argv[]) {
-  eadk_display_draw_string("Hello, world!", (eadk_point_t){0, 0}, true, eadk_color_black, eadk_color_white);
-  eadk_timing_msleep(3000);
-}
-```
-
-## Build the app
+## First, build the app
+This is to ensure that the project builds in the first place, and then to get the binary.
+###### *([taken from here](https://github.com/numworks/epsilon-sample-app-c/?tab=readme-ov-file#build-the-app))*
 
 To build this sample app, you will need to install the [embedded ARM toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) and [Node.js](https://nodejs.org/en/). The C SDK for Epsilon apps is shipped as an npm module called [nwlink](https://www.npmjs.com/package/nwlink) that will automatically be installed at compile time.
 
@@ -24,19 +17,10 @@ make clean && make build
 
 You should now have a `output/app.nwa` file that you can distribute! Anyone can now install it on their calculator from the [NumWorks online uploader](https://my.numworks.com/apps).
 
-## Run the app locally
-
-To run the app on your development machine, you can use the following command
+## Then, install it!
+###### *([taken from here](https://github.com/numworks/epsilon-sample-app-c/?tab=readme-ov-file#run-the-app-locally))*
 
 ```shell
 # Now connect your NumWorks calculator to your computer using the USB cable
 make run
 ```
-
-## License
-
-This sample app is distributed under the terms of the BSD License. See LICENSE for details.
-
-## Trademarks
-
-NumWorks is a registered trademark.
