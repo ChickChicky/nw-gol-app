@@ -1,121 +1,12 @@
-#include <eadk.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
+#include "common.h"
+#include "configs.h"
+#include "palettes.h"
 
 const char eadk_app_name[] __attribute__((section(".rodata.eadk_app_name"))) = "GOL+";
 const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))) = 0;
 
-typedef struct config {
-  float    F; // How much should the grid be filled when initializing
-  uint16_t B; // Birth rule
-  uint16_t S; // Survival rule
-  uint8_t  s; // (WIP) State count
-  const char* name; // The name of the rule / configuration
-} config_t;
-
-static const char* const menu_custom_name = "[Custom]";
-static const char* const menu_config_name = "[Configure]";
-
-config_t configs[] = { // All of the preset configurations
-  { .F = .30f,
-    .B = 0b000001000,
-    .S = 0b000001100,
-    .s = 2,
-    .name = menu_custom_name,
-  },
-  {
-    .name = menu_config_name,
-  },
-  { .F = .50f,
-    .B = 0b000001000,
-    .S = 0b000001100,
-    .s = 2,
-    .name = "GOL",
-  },
-  { .F = .75f,
-    .B = 0b000001000,
-    .S = 0b000111110,
-    .s = 2,
-    .name = "Maze",
-  },
-  { .F = .75f,
-    .B = 0b110001000,
-    .S = 0b111101100,
-    .s = 2,
-    .name = "Coagulation",
-  },
-  { .F = .50f,
-    .B = 0b010001000,
-    .S = 0b100111000,
-    .s = 3,
-    .name = "Cool",
-  },
-  { .F = .10f,
-    .B = 0b000000100,
-    .S = 0b000010100,
-    .s = 8,
-    .name = "Crystal",
-  },
-  { 0 }
-};
-
-eadk_color_t palette[] = {
-  0x0000,
-  0x0841,
-  0x1082,
-  0x18c3,
-  0x2104,
-  0x2945,
-  0x3186,
-  0x39c7,
-  0x4208,
-  0x4a49,
-  0x528a,
-  0x5acb,
-  0x630c,
-  0x6b4d,
-  0x738e,
-  0x7bcf,
-  0x8410,
-  0x8c51,
-  0x9492,
-  0x9cd3,
-  0xa514,
-  0xad55,
-  0xb596,
-  0xbdd7,
-  0xc618,
-  0xce59,
-  0xd69a,
-  0xdedb,
-  0xe71c,
-  0xef5d,
-  0xf79e,
-  0xffff,
-};
-
-static inline eadk_color_t palette_get(uint8_t s, uint8_t t) {
-  return palette[((uint32_t)t)*(sizeof(palette)/sizeof(eadk_color_t)-1)/(((uint32_t)s)-1ull)];
-}
-
-#define NCONFIGS ((sizeof(configs)/sizeof(config_t))-1)
-
 // Waits for the specified key to be released (eadk_key_*)
 #define WAIT_RELEASE(k){while((eadk_keyboard_key_down(eadk_keyboard_scan(),k)))eadk_timing_msleep(10);}
-
-// Modulus so that (-1)%7 = 5
-#define MOD(a,b) ((((a)%(b))+(b))%(b))
-
-static inline float clampf(float v, float n, float m) {
-  v = (v<n)?n:v;
-  return (v>m)?m:v;
-}
-
-static inline int clampi(int v, int n, int m) {
-  v = (v<n)?n:v;
-  return (v>m)?m:v;
-}
 
 #define FLAG_PAUSED 0b00000000000000000000000000000001
 #define FLAG_STEP   0b00000000000000000000000000000010
@@ -127,6 +18,8 @@ static inline int clampi(int v, int n, int m) {
 
 // The amount of time between scrolls while holding keys
 #define HOLD_PAUSE 150
+
+pal_t* palette;
 
 uint8_t board[240*240] = {0}; // Board
 uint8_t bboard[240*240] = {0}; // Backboard
@@ -155,7 +48,22 @@ uint32_t w;
 uint32_t h;
 uint32_t sz;
 
-char tmp[16] = {0};
+char tmp[64] = {0};
+
+static inline float clampf(float v, float n, float m) {
+  v = (v<n)?n:v;
+  return (v>m)?m:v;
+}
+
+static inline int clampi(int v, int n, int m) {
+  v = (v<n)?n:v;
+  return (v>m)?m:v;
+}
+
+static inline eadk_color_t palette_get(uint8_t s, uint8_t t) {
+  if (!palette) return 0xF81F | (((uint32_t)s)*31/255);
+  return palette->colors[((uint32_t)t)*(palette->size-1)/(((uint32_t)s)-1ull)];
+}
 
 static inline void init_menu(bool first) { state = STATE_MENU;
   if (!first) return;
@@ -171,6 +79,7 @@ static inline void init_sim(bool first) { state = STATE_SIM;
   S = conf.S;
   s = conf.s;
   F = conf.F;
+  palette = conf.palette;
   const uint32_t fillrate = UINT32_MAX*F;
   for (size_t i = 0; i < sz; i++)
     board[i] = (eadk_random() < fillrate)*(eadk_random()%s);
@@ -214,7 +123,7 @@ int main(int argc, char* argv[]) {
     if (state == STATE_MENU) {
       if (eadk_keyboard_key_down(kbd,eadk_key_up)) {
         if (t-lt > HOLD_PAUSE) {
-          selected = MOD(selected-1,NCONFIGS);
+          selected = MOD(((int16_t)selected)-1,NCONFIGS);
           lt = t;
         }
       }
@@ -256,7 +165,7 @@ int main(int argc, char* argv[]) {
     else if (state == STATE_CUSTOM) {
       if (eadk_keyboard_key_down(kbd,eadk_key_up)) {
         if (t-lt > HOLD_PAUSE) {
-          ctm_locr = MOD(ctm_locr-1,5);
+          ctm_locr = MOD(((int16_t)ctm_locr)-1,5);
           lt = t;
         }
       }
@@ -271,7 +180,7 @@ int main(int argc, char* argv[]) {
           if (ctm_locr == 0 || ctm_locr == 1) {
             ctm_locc = MOD(ctm_locc-1,9);
           } else if (ctm_locr == 2) {
-            configs[selected].s = clampi(configs[selected].s-1,2,sizeof(palette)/sizeof(eadk_color_t));
+            configs[selected].s = clampi(configs[selected].s-1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
             configs[selected].F = ((float)((int)(clampf(configs[selected].F-.1f,0.f,1.f)*100.f)))/100.f;
           } else if (ctm_locr == 4) {
@@ -285,7 +194,7 @@ int main(int argc, char* argv[]) {
           if (ctm_locr == 0 || ctm_locr == 1) {
             ctm_locc = MOD(ctm_locc+1,9);
           } else if (ctm_locr == 2) {
-            configs[selected].s = clampi(configs[selected].s+1,2,sizeof(palette)/sizeof(eadk_color_t));
+            configs[selected].s = clampi(configs[selected].s+1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
             configs[selected].F = ((float)((int)(clampf(configs[selected].F+.1f,0.f,1.f)*100.f)))/100.f;
           } else if (ctm_locr == 4) {
@@ -351,7 +260,7 @@ int main(int argc, char* argv[]) {
     else if (state == STATE_CONFIG) {
       if (eadk_keyboard_key_down(kbd,eadk_key_up)) {
         if (t-lt > HOLD_PAUSE) {
-          cfg_locr = MOD(cfg_locr-1,2);
+          cfg_locr = MOD(((int16_t)cfg_locr)-1,2);
           lt = t;
         }
       }
@@ -457,7 +366,7 @@ int main(int argc, char* argv[]) {
             bboard[i] = v = k ? (s-1) : (u==0 ? 0 : s-2);
           }
 
-          if (!(frame%16) || u != v)
+          if (!(frame%128) || u != v) // Full screen refresh every 128 frames
             eadk_display_push_rect_uniform((eadk_rect_t){x,y,1,1},palette_get(s,v));
         }
       }

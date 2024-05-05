@@ -15,7 +15,7 @@ src = $(addprefix src/,\
 
 CFLAGS = -std=c99
 CFLAGS += $(shell $(NWLINK) eadk-cflags)
-CFLAGS += -Os -Wall
+CFLAGS += -O2 -Wall
 CFLAGS += -ggdb
 LDFLAGS = -Wl,--relocatable
 LDFLAGS += -nostartfiles
