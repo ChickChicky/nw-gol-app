@@ -352,6 +352,10 @@ int main(int argc, char* argv[]) {
     else if (state == STATE_SIM) {
       // back -> menu
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
+        if (configs[selected].name == menu_custom_name)
+          init_custom(false);
+        else
+          init_menu(false);
         WAIT_RELEASE(eadk_key_back);
         eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
         continue;
