@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 // Modulus so that (-1)%7 = 5
 #define MOD(a,b) ((((a)%(b))+(b))%(b))

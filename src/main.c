@@ -48,6 +48,8 @@ uint32_t w;
 uint32_t h;
 uint32_t sz;
 
+uint8_t brightness;
+
 char tmp[64] = {0};
 
 static inline float clampf(float v, float n, float m) {
@@ -63,6 +65,22 @@ static inline int clampi(int v, int n, int m) {
 static inline eadk_color_t palette_get(uint8_t s, uint8_t t) {
   if (!palette) return 0xF81F | (((uint32_t)s)*31/255);
   return palette->colors[((uint32_t)t)*(palette->size-1)/(((uint32_t)s)-1ull)];
+}
+
+static inline void sim_refresh(void) {
+  for (size_t x = 0; x < w; x++) for (size_t y = 0; y < h; y++) {
+    eadk_display_push_rect_uniform((eadk_rect_t){x,y,1,1},palette_get(s,board[x+y*w]));
+  }
+}
+
+static inline void update_brightness(void) {
+  eadk_backlight_set_brightness(brightness);
+  float bw = 64.f;
+  float bright = ((float)brightness)/255.f;
+  eadk_display_push_rect_uniform((eadk_rect_t){320-8-((int)bw),240-16-4,(int)floorf(bw*(1-bright)),4},eadk_color_black);
+  eadk_display_push_rect_uniform((eadk_rect_t){320-8-((int)bw)+(int)floorf(bw*(1-bright)),240-16-4,(int)ceilf(bw*bright),4},eadk_color_blue);
+  eadk_display_push_rect_uniform((eadk_rect_t){320-8-((int)bw)-1,240-16-4-1,1,6},eadk_color_white);
+  eadk_display_push_rect_uniform((eadk_rect_t){320-8,240-16-4-1,1,6},eadk_color_white);
 }
 
 static inline void init_menu(bool first) { state = STATE_MENU;
@@ -113,10 +131,25 @@ int main(int argc, char* argv[]) {
   init_custom(true);
   init_config(true);
 
+  brightness = eadk_backlight_brightness();
+
   state = STATE_MENU;
 
   for (uint32_t frame=0;1;frame++) {
     eadk_keyboard_state_t kbd = eadk_keyboard_scan();
+    
+    if (eadk_keyboard_key_down(kbd,eadk_key_plus)) {
+      brightness = clampi(((int)brightness)+25,0,255);
+      update_brightness();
+    }
+    else if (eadk_keyboard_key_down(kbd,eadk_key_minus)) {
+      brightness = clampi(((int)brightness)-25,0,255);
+      update_brightness();
+    }
+    else if (!(frame%16)) {
+      update_brightness();
+    }
+
     
     uint64_t t = eadk_timing_millis();
 
@@ -147,6 +180,7 @@ int main(int argc, char* argv[]) {
         }
         WAIT_RELEASE(eadk_key_ok);
         eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+        if (state == STATE_SIM) sim_refresh();
         continue;
       }
       
@@ -182,7 +216,7 @@ int main(int argc, char* argv[]) {
           } else if (ctm_locr == 2) {
             configs[selected].s = clampi(configs[selected].s-1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
-            configs[selected].F = ((float)((int)(clampf(configs[selected].F-.1f,0.f,1.f)*100.f)))/100.f;
+            configs[selected].F = ((float)((int)(clampf(configs[selected].F-.1f,0.f,1.f)*10.f)))/10.f;
           } else if (ctm_locr == 4) {
 
           }
@@ -196,7 +230,7 @@ int main(int argc, char* argv[]) {
           } else if (ctm_locr == 2) {
             configs[selected].s = clampi(configs[selected].s+1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
-            configs[selected].F = ((float)((int)(clampf(configs[selected].F+.1f,0.f,1.f)*100.f)))/100.f;
+            configs[selected].F = ((float)((int)(clampf(configs[selected].F+.1f,0.f,1.f)*10.f)))/10.f;
           } else if (ctm_locr == 4) {
 
           }
@@ -233,6 +267,7 @@ int main(int argc, char* argv[]) {
           init_sim(false);
           WAIT_RELEASE(eadk_key_ok);
           eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+          sim_refresh();
           continue;
         }
       }
@@ -317,7 +352,6 @@ int main(int argc, char* argv[]) {
     else if (state == STATE_SIM) {
       // back -> menu
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
-        state = STATE_MENU;
         WAIT_RELEASE(eadk_key_back);
         eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
         continue;
