@@ -69,4 +69,36 @@ pal_t pal_crystal = MAKE_PALETTE(((eadk_color_t[]){
   RGB(102, 45,  107),
 }));
 
+pal_t pal_cyber = MAKE_PALETTE(((eadk_color_t[]){
+  RGB(0, 0,   0  ),
+  RGB(0, 48,  72 ),
+  RGB(0, 61,  79 ),
+  RGB(0, 75,  87 ),
+  RGB(0, 89,  95 ),
+  RGB(0, 103, 102),
+  RGB(0, 116, 110),
+  RGB(0, 130, 118),
+  RGB(0, 144, 125),
+  RGB(0, 158, 133),
+  RGB(0, 172, 141),
+  RGB(0, 185, 148),
+  RGB(0, 199, 156),
+  RGB(0, 213, 164),
+  RGB(0, 227, 171),
+  RGB(0, 241, 179),
+  RGB(0, 255, 187),
+}));
+
+
+pal_t pal_circgen = MAKE_PALETTE(((eadk_color_t[]){
+  RGB(0,   0,     0),
+  RGB(112, 42,  101),
+  RGB(124, 56,  107),
+  RGB(136, 71,  114),
+  RGB(148, 86,  120),
+  RGB(160, 100, 127),
+  RGB(172, 115, 133),
+  RGB(184, 130, 140),
+}));
+
 #endif
