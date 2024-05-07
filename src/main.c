@@ -16,8 +16,14 @@ const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))
 #define STATE_CUSTOM 2
 #define STATE_CONFIG 3
 
+// Experimental option to enable random generation post-processing
+// to create clumps of cells
+#define GENERATE_GROUPS 1
+
 // The amount of time between scrolls while holding keys
 #define HOLD_PAUSE 150
+
+#define KEY_NONE 0xFFFFFFFFFFFFFFFF
 
 pal_t* palette;
 
@@ -119,19 +125,38 @@ static inline void init_config(bool first) { state = STATE_CONFIG;
   sz = w*h;
 }
 
-int main(int argc, char* argv[]) {
-  //// Configuration Selection Menu ////
+static inline void update_state(uint8_t nstate, eadk_key_t key) {
+  if (nstate == STATE_MENU)
+    init_menu(false);
+  else if (nstate == STATE_SIM)
+    init_sim(false);
+  else if (nstate == STATE_CUSTOM)
+    init_custom(false);
+  else if (nstate == STATE_CONFIG)
+    init_config(false);
   
+  if (key != KEY_NONE)
+    WAIT_RELEASE(key);
+  
+  eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+  
+  if (state == STATE_SIM) 
+    sim_refresh();
+  
+  update_brightness();
+}
+
+int main(int argc, char* argv[]) {  
   WAIT_RELEASE(eadk_key_ok);
 
   eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+
+  brightness = eadk_backlight_brightness();
 
   init_menu(true);
   init_sim(true);
   init_custom(true);
   init_config(true);
-
-  brightness = eadk_backlight_brightness();
 
   state = STATE_MENU;
 
@@ -149,14 +174,13 @@ int main(int argc, char* argv[]) {
     else if (!(frame%16)) {
       update_brightness();
     }
-
     
     uint64_t t = eadk_timing_millis();
 
     if (state == STATE_MENU) {
       if (eadk_keyboard_key_down(kbd,eadk_key_up)) {
         if (t-lt > HOLD_PAUSE) {
-          selected = MOD(((int16_t)selected)-1,NCONFIGS);
+          selected = MOD(((int)selected)-1,NCONFIGS);
           lt = t;
         }
       }
@@ -172,15 +196,12 @@ int main(int argc, char* argv[]) {
       
       if (eadk_keyboard_key_down(kbd,eadk_key_ok)) {
         if (configs[selected].name == menu_custom_name) {
-          init_custom(false);
+          update_state(STATE_CUSTOM,eadk_key_ok);
         } else if (configs[selected].name == menu_config_name) {
-          init_config(false);
+          update_state(STATE_CONFIG,eadk_key_ok);
         } else {
-          init_sim(false);
+          update_state(STATE_SIM,eadk_key_ok);
         }
-        WAIT_RELEASE(eadk_key_ok);
-        eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
-        if (state == STATE_SIM) sim_refresh();
         continue;
       }
       
@@ -199,7 +220,7 @@ int main(int argc, char* argv[]) {
     else if (state == STATE_CUSTOM) {
       if (eadk_keyboard_key_down(kbd,eadk_key_up)) {
         if (t-lt > HOLD_PAUSE) {
-          ctm_locr = MOD(((int16_t)ctm_locr)-1,5);
+          ctm_locr = MOD(((int)ctm_locr)-1,5);
           lt = t;
         }
       }
@@ -242,9 +263,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
-        init_menu(false);
-        WAIT_RELEASE(eadk_key_back);
-        eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+        update_state(STATE_MENU,eadk_key_back);
         continue;
       }
 
@@ -264,10 +283,7 @@ int main(int argc, char* argv[]) {
           
         }
         else if (ctm_locr == 4) {
-          init_sim(false);
-          WAIT_RELEASE(eadk_key_ok);
-          eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
-          sim_refresh();
+          update_state(STATE_SIM,eadk_key_ok);
           continue;
         }
       }
@@ -332,9 +348,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
-        init_menu(false);
-        WAIT_RELEASE(eadk_key_back);
-        eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
+        update_state(STATE_MENU,eadk_key_back);
         continue;
       }
 
@@ -353,9 +367,9 @@ int main(int argc, char* argv[]) {
       // back -> menu
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
         if (configs[selected].name == menu_custom_name)
-          init_custom(false);
+          update_state(STATE_CUSTOM,eadk_key_back);
         else
-          init_menu(false);
+          update_state(STATE_MENU,eadk_key_back);
         WAIT_RELEASE(eadk_key_back);
         eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
         continue;
