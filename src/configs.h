@@ -76,7 +76,7 @@ config_t configs[] = { // All of the preset configurations
     .name = "Bricks",
     .palette = &pal_default,
   },
-  { .F = .30f /*.05f*/,
+  { .F = .001f /*.05f*/,
     .B = 0b011000100,
     .S = 0b001111000,
     .s = 17,

@@ -11,10 +11,10 @@ const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))
 #define FLAG_PAUSED 0b00000000000000000000000000000001
 #define FLAG_STEP   0b00000000000000000000000000000010
 
-#define STATE_MENU   0
-#define STATE_SIM    1
-#define STATE_CUSTOM 2
-#define STATE_CONFIG 3
+#define STATE_MENU   1
+#define STATE_SIM    2
+#define STATE_CUSTOM 3
+#define STATE_CONFIG 4
 
 // Experimental option to enable random generation post-processing
 // to create clumps of cells
@@ -55,6 +55,9 @@ uint32_t h;
 uint32_t sz;
 
 uint8_t brightness;
+
+uint8_t state_stack[256] = { 0 };
+uint8_t state_ptr;
 
 char tmp[64] = {0};
 
@@ -104,9 +107,28 @@ static inline void init_sim(bool first) { state = STATE_SIM;
   s = conf.s;
   F = conf.F;
   palette = conf.palette;
-  const uint32_t fillrate = UINT32_MAX*F;
+  const uint32_t fillrate = F*(UINT32_MAX-1);
+
+#if GENERATE_GROUPS
   for (size_t i = 0; i < sz; i++)
-    board[i] = (eadk_random() < fillrate)*(eadk_random()%s);
+    bboard[i] = (eadk_random() < fillrate);
+  for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) {
+    size_t i = x+y*w;
+    uint8_t n = 0;
+    for (int dx = -1; dx < 2; dx++) {
+      for (int dy = -1; dy < 2; dy++) {
+        if (dx == 0 && dy == 0) continue;
+        n += bboard[MOD(x+dx,(signed)w)+MOD(y+dy,(signed)h)*w];
+      }
+    }
+    float k = ((((float)(eadk_random()%1024))/1024.f)-.5f)*2.f;
+    float t = ((float)n)/8.f;
+    board[i] = ((t*t*t+k*.2f)>.5f) ? (s-1) : 0;
+  }
+#else
+  for (size_t i = 0; i < sz; i++)
+    bboard[i] = (eadk_random() < fillrate)*(eadk_random()%s);
+#endif
 }
 
 static inline void init_custom(bool first) { state = STATE_CUSTOM;
@@ -125,7 +147,7 @@ static inline void init_config(bool first) { state = STATE_CONFIG;
   sz = w*h;
 }
 
-static inline void update_state(uint8_t nstate, eadk_key_t key) {
+static inline void push_state(uint8_t nstate, eadk_key_t key) {
   if (nstate == STATE_MENU)
     init_menu(false);
   else if (nstate == STATE_SIM)
@@ -134,6 +156,8 @@ static inline void update_state(uint8_t nstate, eadk_key_t key) {
     init_custom(false);
   else if (nstate == STATE_CONFIG)
     init_config(false);
+
+  state_stack[state_ptr++] = nstate;
   
   if (key != KEY_NONE)
     WAIT_RELEASE(key);
@@ -159,6 +183,7 @@ int main(int argc, char* argv[]) {
   init_config(true);
 
   state = STATE_MENU;
+  state_ptr = 0;
 
   for (uint32_t frame=0;1;frame++) {
     eadk_keyboard_state_t kbd = eadk_keyboard_scan();
@@ -196,11 +221,11 @@ int main(int argc, char* argv[]) {
       
       if (eadk_keyboard_key_down(kbd,eadk_key_ok)) {
         if (configs[selected].name == menu_custom_name) {
-          update_state(STATE_CUSTOM,eadk_key_ok);
+          push_state(STATE_CUSTOM,eadk_key_ok);
         } else if (configs[selected].name == menu_config_name) {
-          update_state(STATE_CONFIG,eadk_key_ok);
+          push_state(STATE_CONFIG,eadk_key_ok);
         } else {
-          update_state(STATE_SIM,eadk_key_ok);
+          push_state(STATE_SIM,eadk_key_ok);
         }
         continue;
       }
@@ -263,7 +288,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
-        update_state(STATE_MENU,eadk_key_back);
+        push_state(STATE_MENU,eadk_key_back);
         continue;
       }
 
@@ -283,7 +308,7 @@ int main(int argc, char* argv[]) {
           
         }
         else if (ctm_locr == 4) {
-          update_state(STATE_SIM,eadk_key_ok);
+          push_state(STATE_SIM,eadk_key_ok);
           continue;
         }
       }
@@ -348,7 +373,7 @@ int main(int argc, char* argv[]) {
       }
 
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
-        update_state(STATE_MENU,eadk_key_back);
+        push_state(STATE_MENU,eadk_key_back);
         continue;
       }
 
@@ -367,9 +392,9 @@ int main(int argc, char* argv[]) {
       // back -> menu
       if (eadk_keyboard_key_down(kbd,eadk_key_back)) {
         if (configs[selected].name == menu_custom_name)
-          update_state(STATE_CUSTOM,eadk_key_back);
+          push_state(STATE_CUSTOM,eadk_key_back);
         else
-          update_state(STATE_MENU,eadk_key_back);
+          push_state(STATE_MENU,eadk_key_back);
         WAIT_RELEASE(eadk_key_back);
         eadk_display_push_rect_uniform(eadk_screen_rect,eadk_color_black);
         continue;
