@@ -25,6 +25,8 @@ const uint32_t eadk_api_level  __attribute__((section(".rodata.eadk_api_level"))
 
 #define KEY_NONE 0xFFFFFFFFFFFFFFFF
 
+#define NSMOOTH 2
+
 pal_t* palette;
 
 uint8_t board[240*240] = {0}; // Board
@@ -110,20 +112,30 @@ static inline void init_sim(bool first) { state = STATE_SIM;
   const uint32_t fillrate = F*(UINT32_MAX-1);
 
 #if GENERATE_GROUPS
+  // Initial noise
   for (size_t i = 0; i < sz; i++)
     bboard[i] = (eadk_random() < fillrate);
-  for (int x = 0; x < w; x++) for (int y = 0; y < h; y++) {
-    size_t i = x+y*w;
-    uint8_t n = 0;
-    for (int dx = -1; dx < 2; dx++) {
-      for (int dy = -1; dy < 2; dy++) {
-        if (dx == 0 && dy == 0) continue;
-        n += bboard[MOD(x+dx,(signed)w)+MOD(y+dy,(signed)h)*w];
+  
+  // Smoothing
+  for (size_t itr = 0; itr < NSMOOTH; itr++) {
+    for (uint32_t x = 0; x < w; x++) for (uint32_t y = 0; y < h; y++) {
+      size_t i = x+y*w;
+      uint8_t n = 0;
+      for (int dx = -1; dx < 2; dx++) {
+        for (int dy = -1; dy < 2; dy++) {
+          if (dx == 0 && dy == 0) continue;
+          n += bboard[MOD(x+dx,(signed)w)+MOD(y+dy,(signed)h)*w];
+        }
       }
+      // float k = ((((float)(eadk_random()%2048))/2048.f)-.5f);
+      // float t = ((float)n)/8.f;
+      board[i] = (n > 3)*(s-1);
+      // board[i] = (uint8_t)(ceilf(t*(float)s)/(float)s);
     }
-    float k = ((((float)(eadk_random()%1024))/1024.f)-.5f)*2.f;
-    float t = ((float)n)/8.f;
-    board[i] = ((t*t*t+k*.2f)>.5f) ? (s-1) : 0;
+    if (itr+1 < NSMOOTH) {
+      for (size_t i = 0; i < sz; i++)
+        bboard[i] = board[i];
+    }
   }
 #else
   for (size_t i = 0; i < sz; i++)
@@ -262,7 +274,7 @@ int main(int argc, char* argv[]) {
           } else if (ctm_locr == 2) {
             configs[selected].s = clampi(configs[selected].s-1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
-            configs[selected].F = ((float)((int)(clampf(configs[selected].F-.1f,0.f,1.f)*10.f)))/10.f;
+            configs[selected].F = floorf(clampf(configs[selected].F-.05f,0.f,.5f)*20.f)/20.f;
           } else if (ctm_locr == 4) {
 
           }
@@ -276,7 +288,7 @@ int main(int argc, char* argv[]) {
           } else if (ctm_locr == 2) {
             configs[selected].s = clampi(configs[selected].s+1,2,pal_custom.size-1);
           } else if (ctm_locr == 3) {
-            configs[selected].F = ((float)((int)(clampf(configs[selected].F+.1f,0.f,1.f)*10.f)))/10.f;
+            configs[selected].F = floorf(clampf(configs[selected].F+.05f,0.f,5.f)*20.f)/20.f;
           } else if (ctm_locr == 4) {
 
           }
