@@ -248,9 +248,14 @@ int main(int argc, char* argv[]) {
         return 0;
       }
       
+      static const uint16_t nvertical = 15;
       for (size_t i = 0; i < NCONFIGS; i++) {
         config_t* conf = &configs[i];
-        eadk_display_draw_string(conf->name,(eadk_point_t){1,1+i*14},false,i==selected?((conf->name==menu_custom_name||conf->name==menu_config_name)?(eadk_color_red|eadk_color_green):eadk_color_green):eadk_color_white,eadk_color_black);
+        const eadk_point_t pt = (eadk_point_t){
+          .x = 1 + (i / nvertical) * 120,
+          .y = 1 + (i % nvertical) * 14,
+        };
+        eadk_display_draw_string(conf->name,pt,false,i==selected?((conf->name==menu_custom_name||conf->name==menu_config_name)?(eadk_color_red|eadk_color_green):eadk_color_green):eadk_color_white,eadk_color_black);
       }
     }
 
