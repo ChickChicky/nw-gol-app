@@ -1,7 +1,7 @@
 Q ?= @
 CC = arm-none-eabi-gcc
 BUILD_DIR = output
-NWLINK = npx --yes -- nwlink@0.0.16
+NWLINK = npx --yes -- nwlink@0.0.17
 LINK_GC = 1
 LTO = 1
 
@@ -15,7 +15,8 @@ src = $(addprefix src/,\
 
 CFLAGS = -std=c99
 CFLAGS += $(shell $(NWLINK) eadk-cflags)
-CFLAGS += -O2 -Wall
+CFLAGS += -Ofast
+CFLAGS += -Wall
 CFLAGS += -Iinclude
 CFLAGS += -ggdb
 LDFLAGS = -Wl,--relocatable
